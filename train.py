@@ -125,10 +125,10 @@ def main():
         train_loss = sum(loss_epoch)
         train_acc = sum(acc_epoch) / len(acc_epoch)
         valid_loss, valid_acc = valid(model, valid_loader, device)
-        print('Epoch: %03d  loss: %.5f  acc: %.5f  \
-            valid_loss: %.5f  valid_acc: %.5f'
-              % (epoch + 1, float(train_loss), float(train_acc),
-                 float(valid_loss), float(valid_acc)))
+        print(
+            'Epoch: %03d  loss: %.5f  acc: %.5f  valid_loss: %.5f  valid_acc: %.5f'
+            % (epoch + 1, float(train_loss), float(train_acc),
+               float(valid_loss), float(valid_acc)))
         if last_acc - valid_acc <= 0:
             patient = 0
         else:
