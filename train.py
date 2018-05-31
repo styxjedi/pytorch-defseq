@@ -122,7 +122,7 @@ def main():
             loss.backward()
             optimizer.step()
             acc_epoch.append(get_acc(target_pred, target))
-        train_loss = sum(loss_epoch) / len(loss_epoch)
+        train_loss = sum(loss_epoch)
         train_acc = sum(acc_epoch) / len(acc_epoch)
         valid_loss, valid_acc = valid(model, valid_loader, device)
         print('Epoch: %03d  loss: %.5f  acc: %.5f  \
