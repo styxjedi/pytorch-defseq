@@ -122,8 +122,6 @@ def main():
             loss.backward()
             optimizer.step()
             acc_epoch.append(get_acc(target_pred, target))
-            print(float(loss))
-            print(float(acc_epoch[-1]))
         train_loss = sum(loss_epoch) / len(loss_epoch)
         train_acc = sum(acc_epoch) / len(acc_epoch)
         valid_loss, valid_acc = valid(model, valid_loader, device)
