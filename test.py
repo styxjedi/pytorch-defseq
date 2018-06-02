@@ -74,11 +74,13 @@ def main():
         }
         beam.reset()
         probs, hidden = model(inp)
+        probs = probs.detach().numpy()
         while beam.beam(probs):
             inp['seq'] = torch.tensor(
                 beam.live_samples, dtype=torch.long).to(device)
             inp['word'] = inp['word'][0].repeat(inp['seq'].shape[1]).view(-1)
             probs, hidden = model(inp, hidden)
+            probs = probs.detach().numpy()
         line = [[idx2word[i] for i in line] for line in beam.output]
         line = [''.join(line) for line in line]
         output_lines.append(line)
