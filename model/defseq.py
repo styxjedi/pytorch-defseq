@@ -68,7 +68,7 @@ class DefSeq(nn.Module):
 
         self.hidden2tag_linear = nn.Linear(hid_dim, vocab_size)
 
-    def forward(self, inputs):
+    def forward(self, inputs, init_hidden=None):
         word = inputs['word']
         seq = inputs['seq']
         chars = inputs['chars']
@@ -89,7 +89,11 @@ class DefSeq(nn.Module):
             word_embeddings = torch.cat(
                 [word_embeddings, hnym_embeddings], dim=-1)
 
-        hidden = (self.word_linear(word_embeddings), ) * 2
+        if init_hidden is not None:
+            hidden = init_hidden
+        else:
+            hidden = (self.word_linear(word_embeddings), ) * 2
+
         outputs = []
         for step in range(seq_size):
             inp_seq = seq_embeddings[step, :, :]
@@ -113,7 +117,7 @@ class DefSeq(nn.Module):
             outputs.append(hidden[0].view(1, batch_size, -1))
         outputs = torch.cat(outputs, dim=0)
         outputs = F.log_softmax(self.hidden2tag_linear(outputs), dim=-1)
-        return outputs
+        return outputs, hidden
 
 
 if __name__ == '__main__':
@@ -138,4 +142,4 @@ if __name__ == '__main__':
     print(out.shape)
     out = torch.argmax(out, dim=-1)
     print(out)
-    print(out.shape)
+    print(out[0].shape)

@@ -87,7 +87,7 @@ def main():
     loss_fn = nn.NLLLoss()
     optimizer = optim.Adam(model.parameters())
 
-    model_save_path = 'model/'
+    model_save_path = 'saved_model/'
     if not os.path.exists(model_save_path):
         os.makedirs(model_save_path)
     patient = 0
@@ -114,7 +114,7 @@ def main():
             target = torch.tensor(
                 feed_dict['target'], dtype=torch.long).to(device)
             optimizer.zero_grad()
-            target_pred = model(inp).transpose(0, 1).transpose(1, 2)
+            target_pred = model(inp)[0].transpose(0, 1).transpose(1, 2)
             # print(target_pred.shape)
             # pdb.set_trace()
             loss = loss_fn(target_pred, target)
@@ -126,9 +126,14 @@ def main():
         train_acc = sum(acc_epoch) / len(acc_epoch)
         valid_loss, valid_acc = valid(model, valid_loader, device)
         print(
-            'Epoch: %03d  loss: %.5f  acc: %.5f  valid_loss: %.5f  valid_acc: %.5f'
-            % (epoch + 1, float(train_loss), float(train_acc),
-               float(valid_loss), float(valid_acc)))
+            'Epoch: %03d  loss: %.5f  acc: %.5f' % (
+                epoch + 1,
+                float(train_loss),
+                float(train_acc),
+            ),
+            end='')
+        print('  valid_loss: %.5f  valid_acc: %.5f' % (float(valid_loss),
+                                                       float(valid_acc)))
         if last_acc - valid_acc <= 0:
             patient = 0
         else:
