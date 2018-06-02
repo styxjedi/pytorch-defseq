@@ -48,7 +48,7 @@ def main():
     model = DefSeq(
         len(word2idx) + 1, EMB_DIM, HID_DIM, device, pretrain_emb,
         **char_data).to(device)
-    model.load_state_dict(model_path)
+    model.load_state_dict(torch.load(model_path, device))
     beam = BeamSearch(
         400,
         word2idx['<unk>'],
@@ -73,12 +73,12 @@ def main():
                          dtype=torch.float).to(device)
         }
         beam.reset()
-        probs = model(inp)
+        probs, hidden = model(inp)
         while beam.beam(probs):
             inp['seq'] = torch.tensor(
                 beam.live_samples, dtype=torch.long).to(device)
             inp['word'] = inp['word'][0].repeat(inp['seq'].shape[1]).view(-1)
-            probs = model(inp)
+            probs, hidden = model(inp, hidden)
         line = [[idx2word[i] for i in line] for line in beam.output]
         line = [''.join(line) for line in line]
         output_lines.append(line)
