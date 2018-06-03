@@ -23,7 +23,7 @@ class BeamSearch(object):
         self.beam_size = beam_size
 
     def reset(self):
-        self.deak_k = 0
+        self.dead_k = 0
         self.output = []
         self.output_scores = []
         self.live_k = 1
@@ -46,7 +46,7 @@ class BeamSearch(object):
         self.live_scores = cand_flat[ranks_flat]
 
         # append the new words to their appropriate live sample
-        voc_size = probs.shape[2]
+        voc_size = probs.shape[1]
         self.live_samples = [
             self.live_samples[r // voc_size] + [r % voc_size]
             for r in ranks_flat

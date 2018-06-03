@@ -48,7 +48,7 @@ def main():
     model = DefSeq(
         len(word2idx) + 1, EMB_DIM, HID_DIM, device, pretrain_emb,
         **char_data).to(device)
-    model.load_state_dict(torch.load(model_path, device))
+    model.load_state_dict(torch.load(model_path, str(device)))
     beam = BeamSearch(
         400,
         word2idx['<unk>'],
@@ -74,13 +74,23 @@ def main():
         }
         beam.reset()
         probs, hidden = model(inp)
-        probs = probs.detach().numpy()
+        probs = probs.detach().numpy().squeeze(0)
         while beam.beam(probs):
             inp['seq'] = torch.tensor(
                 beam.live_samples, dtype=torch.long).to(device)
-            inp['word'] = inp['word'][0].repeat(inp['seq'].shape[1]).view(-1)
+            inp['seq'] = inp['seq'][:, -1].expand(1, -1)
+            inp['word'] = inp['word'][0].repeat(inp['seq'].shape[1])
+            inp['chars'] = inp['chars'][0].expand(1, -1).repeat(
+                inp['seq'].shape[1], 1)
+            inp['hnym'] = inp['hnym'][0].expand(1, -1).repeat(
+                inp['seq'].shape[1], 1)
+            inp['hnym_weights'] = inp['hnym_weights'][0].expand(1, -1).repeat(
+                inp['seq'].shape[1], 1)
+            hidden = (hidden[0][0].expand(1, -1).repeat(
+                inp['seq'].shape[1], 1), hidden[1][0].expand(1, -1).repeat(
+                    inp['seq'].shape[1], 1))
             probs, hidden = model(inp, hidden)
-            probs = probs.detach().numpy()
+            probs = probs.detach().numpy().squeeze(0)
         line = [[idx2word[i] for i in line] for line in beam.output]
         line = [''.join(line) for line in line]
         output_lines.append(line)
