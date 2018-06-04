@@ -19,6 +19,7 @@ class BeamSearch(object):
     def __init__(self, max_len, unk, bos, eos, beam_size=1):
         self.max_len = max_len
         self.unk = unk
+        self.bos = bos
         self.eos = eos
         self.beam_size = beam_size
 
@@ -27,7 +28,7 @@ class BeamSearch(object):
         self.output = []
         self.output_scores = []
         self.live_k = 1
-        self.live_samples = [[]]
+        self.live_samples = [[self.bos]]
         self.live_scores = [0]
 
     def beam(self, probs):

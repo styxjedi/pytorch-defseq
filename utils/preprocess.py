@@ -190,17 +190,16 @@ def prep_target(train, test, valid, word2idx):
             seq.append('</s>')
             for j, w in enumerate(seq):
                 norm_target[i][j] = word2idx[w]
-    test_target = defaultdict(list)
-    for word, seq in test:
-        test_target[word].append(seq)
     print('Done!')
-    return train_target, test_target, valid_target
+    return train_target, valid_target
 
 
 def main():
     print('Reading Origin Data...')
     train_data = read_origin_data('../data/commondefs/train.txt')
     test_data = read_origin_data('../data/commondefs/test.txt')
+    test_shortlist = read_origin_data(
+        '../data/commondefs/shortlist/shortlist_test.txt')
     valid_data = read_origin_data('../data/commondefs/valid.txt')
     hnym_data = read_hypernyms(
         '../data/commondefs/auxiliary/bag_of_hypernyms.txt')
@@ -212,16 +211,16 @@ def main():
     top_k = 5
     word2hnym, hnym_weights = get_hnym(hnym_data, word2idx, top_k)
 
-    train_word, test_word, valid_word = prep_word(train_data, test_data,
+    train_word, test_word, valid_word = prep_word(train_data, test_shortlist,
                                                   valid_data, word2idx)
-    train_seq, test_seq, valid_seq = prep_seq(train_data, test_data,
+    train_seq, test_seq, valid_seq = prep_seq(train_data, test_shortlist,
                                               valid_data, word2idx)
-    train_chars, test_chars, valid_chars = prep_chars(train_data, test_data,
-                                                      valid_data, char2idx)
+    train_chars, test_chars, valid_chars = prep_chars(
+        train_data, test_shortlist, valid_data, char2idx)
     train_hnym, train_hnym_weights, test_hnym, test_hnym_weights, valid_hnym, valid_hnym_weights = prep_hnym(
-        train_data, test_data, valid_data, word2hnym, hnym_weights, top_k)
-    train_target, test_target, valid_target = prep_target(
-        train_data, test_data, valid_data, word2idx)
+        train_data, test_shortlist, valid_data, word2hnym, hnym_weights, top_k)
+    train_target, valid_target = prep_target(train_data, test_data, valid_data,
+                                             word2idx)
 
     print('Saving to Files...')
     prep_path = '../data/processed/'
@@ -259,8 +258,6 @@ def main():
         fr2.write(json.dumps(word2hnym))
     with open(prep_path + 'char2idx.js', 'w') as fr3:
         fr3.write(json.dumps(char2idx))
-    with open(prep_path + 'test_target.js', 'w') as fr4:
-        fr4.write(json.dumps(test_target))
     with open(prep_path + 'hnym_weights.js', 'w') as fr5:
         fr5.write(json.dumps(hnym_weights))
     print('Done!')

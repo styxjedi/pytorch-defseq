@@ -55,8 +55,8 @@ def main():
         word2idx['<s>'],
         word2idx['</s>'],
         beam_size=50)
-    output_lines = []
-    output_scores = []
+    output_lines = {}
+    output_scores = {}
     for feed_dict in tqdm(test_loader, desc='Test', leave=False):
         inp = {
             'word':
@@ -91,13 +91,17 @@ def main():
                     inp['seq'].shape[1], 1))
             probs, hidden = model(inp, hidden)
             probs = probs.detach().cpu().numpy().squeeze(0)
-        line = [[idx2word[i] for i in line] for line in beam.output]
-        line = [''.join(line) for line in line]
-        output_lines.append(line)
-        output_scores.append(beam.output_scores)
-    with open(output_save_path + 'output_lines.js', 'w') as fw_lines:
+        line = [[idx2word[i] for i in line if i not in [1, 2, 3]]
+                for line in beam.output]
+        line = [' '.join(line) for line in line]
+        word = idx2word[int(feed_dict['word'])]
+        print(word)
+        print('\n'.join(line[:5]))
+        output_lines[word] = line
+        output_scores[word] = beam.output_scores
+    with open(output_save_path + '/output_lines.js', 'w') as fw_lines:
         fw_lines.write(json.dumps(output_lines))
-    with open(output_save_path + 'output_scores.js', 'w') as fw_scores:
+    with open(output_save_path + '/output_scores.js', 'w') as fw_scores:
         fw_scores.write(json.dumps(output_scores))
     return 1
 
