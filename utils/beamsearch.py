@@ -25,8 +25,8 @@ class BeamSearch(object):
 
     def reset(self):
         self.dead_k = 0
-        self.output = []
-        self.output_scores = []
+        self.dead_samples = []
+        self.dead_scores = []
         self.live_k = 1
         self.live_samples = [[self.bos]]
         self.live_scores = [0]
@@ -60,12 +60,11 @@ class BeamSearch(object):
         ]
 
         # add zombies to the dead
-        self.output += [s for s, z in zip(self.live_samples, zombie)
-                        if z]  # remove first label == empty
-        self.output_scores += [
-            s for s, z in zip(self.live_scores, zombie) if z
-        ]
-        self.dead_k = len(self.output)
+        self.dead_samples += [
+            s for s, z in zip(self.live_samples, zombie) if z
+        ]  # remove first label == empty
+        self.dead_scores += [s for s, z in zip(self.live_scores, zombie) if z]
+        self.dead_k = len(self.dead_samples)
         # remove zombies from the living
         self.live_samples = [
             s for s, z in zip(self.live_samples, zombie) if not z
@@ -75,4 +74,6 @@ class BeamSearch(object):
         ]
         self.live_k = len(self.live_samples)
         still = bool(self.live_k and self.dead_k < self.beam_size)
+        self.output = self.dead_samples + self.live_samples
+        self.output_scores = self.dead_scores + self.live_scores
         return still

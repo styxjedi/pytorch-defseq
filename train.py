@@ -56,7 +56,7 @@ def valid(model, valid_loader, device):
                 feed_dict['target'], dtype=torch.long).to(device)
             target_pred = model(inp)[0].transpose(0, 1).transpose(1, 2)
             loss = loss_fn(target_pred, target)
-            loss_all += loss
+            loss_all += loss.data
             acc = get_acc(target_pred, target)
     return loss_all, acc
 
@@ -138,6 +138,7 @@ def main():
             patient = 0
         else:
             patient += 1
+        last_acc = valid_acc
         if (epoch + 1) % 5 == 0:
             torch.save(
                 model.state_dict(),
