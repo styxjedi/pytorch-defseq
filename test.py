@@ -9,9 +9,6 @@ from utils.beamsearch import BeamSearch
 from tqdm import tqdm
 import os
 
-EMB_DIM = 300
-HID_DIM = 300
-
 
 def get_test_loader(file_path):
     test = np.load(file_path)
@@ -22,33 +19,37 @@ def get_test_loader(file_path):
     return test_loader, char_max_len
 
 
-def main():
-    output_save_path = './output'
-    model_path = './saved_model/defseq_model_params_10.pkl'
+def test(output_save_path,
+         test_file_path,
+         device=None,
+         model=None,
+         model_path=None):
     if not os.path.exists(output_save_path):
         os.makedirs(output_save_path)
-    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-    print('Using Device: ', device)
+    if device is None:
+        device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+        print('Using Device: ', device)
 
-    char2idx = json.loads(open('data/processed/char2idx.js').read())
-    word2idx = json.loads(open('data/processed/word2idx.js').read())
-    idx2word = {v: k for k, v in word2idx.items()}
-    pretrain_emb = torch.tensor(
-        np.load('data/processed/preptrain_emb.npy')).to(device)
-    test_file_path = 'data/processed/test.npz'
-    test_loader, char_max_len = get_test_loader(test_file_path)
+    if model is None:
+        EMB_DIM = 300
+        HID_DIM = 300
+        char2idx = json.loads(open('data/processed/char2idx.js').read())
+        word2idx = json.loads(open('data/processed/word2idx.js').read())
+        idx2word = {v: k for k, v in word2idx.items()}
+        pretrain_emb = torch.tensor(
+            np.load('data/processed/preptrain_emb.npy')).to(device)
+        test_loader, char_max_len = get_test_loader(test_file_path)
 
-    char_data = {
-        'char_vocab_size': len(char2idx) + 1,
-        'char_emb_dim': 5,
-        'char_hid_dim': 10,
-        'char_len': char_max_len
-    }
-
-    model = DefSeq(
-        len(word2idx) + 1, EMB_DIM, HID_DIM, device, pretrain_emb,
-        **char_data).to(device)
-    model.load_state_dict(torch.load(model_path, str(device)))
+        char_data = {
+            'char_vocab_size': len(char2idx) + 1,
+            'char_emb_dim': 5,
+            'char_hid_dim': 10,
+            'char_len': char_max_len
+        }
+        model = DefSeq(
+            len(word2idx) + 1, EMB_DIM, HID_DIM, device, pretrain_emb,
+            **char_data).to(device)
+        model.load_state_dict(torch.load(model_path, str(device)))
     beam = BeamSearch(
         400,
         word2idx['<unk>'],
@@ -95,8 +96,8 @@ def main():
                 for line in beam.output]
         line = [' '.join(line) for line in line]
         word = idx2word[int(feed_dict['word'])]
-        print(word)
-        print('\n'.join(line[:5]))
+        # print(word)
+        # print('\n'.join(line[:5]))
         output_lines[word] = line
         output_scores[word] = beam.output_scores
     with open(output_save_path + '/output_lines.js', 'w') as fw_lines:
@@ -107,5 +108,8 @@ def main():
 
 
 if __name__ == '__main__':
-    if main():
+    output_save_path = './output'
+    model_path = './saved_model/defseq_model_params_10.pkl'
+    test_file_path = 'data/processed/test.npz'
+    if test(output_save_path, test_file_path, model_path=model_path):
         print('All Done. No Error.')

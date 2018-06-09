@@ -76,16 +76,13 @@ def compute_score(word, definition, score, function_words=None):
     return new_score * unigram_penalty * self_ref_penalty
 
 
-def main():
+def rerank(gen_def_file, gen_def_scores, rank_write_file):
     function_word_file = './data/function_words.txt'
     function_words = set()
     with open(function_word_file) as ifp:
         for line in ifp:
             function_words.add(line.strip())
     print('Reading Definitions...')
-    gen_def_file = './output/output_lines.js'
-    gen_def_scores = './output/output_scores.js'
-    rank_write_file = './output/rerank_output.js'
     defs, ndefs = read_definition_file(gen_def_file)
     print(" - {} words being defined".format(len(defs)))
     print(" - {} definitions".format(ndefs))
@@ -111,5 +108,8 @@ def main():
 
 
 if __name__ == '__main__':
-    if main():
+    gen_def_file = './output/output_lines.js'
+    gen_def_scores = './output/output_scores.js'
+    rank_write_file = './output/rerank_output.js'
+    if rerank(gen_def_file, gen_def_scores, rank_write_file):
         print('All Done. No Error.')

@@ -9,6 +9,9 @@ from model.defseq import DefSeq
 from utils.dataset import DefSeqDataset
 from tqdm import tqdm
 import os
+from test import test
+from rerank import rerank
+from nltk_bleu import compute_bleu
 
 BATCH_SIZE = 50
 EMB_DIM = 300
@@ -92,6 +95,7 @@ def main():
         os.makedirs(model_save_path)
     patient = 0
     last_acc = 0
+    max_acc = 0
     for epoch in range(200):
         loss_epoch = []
         acc_epoch = []
@@ -134,15 +138,28 @@ def main():
             end='')
         print('  valid_loss: %.5f  valid_acc: %.5f' % (float(valid_loss),
                                                        float(valid_acc)))
+        test('/tmp', 'data/processed/test.npz', device, model=model)
+        rerank('/tmp/output_lines.js', '/tmp/output_scores.js',
+               '/tmp/rerank_output.js')
+        compute_bleu('data/commondefs/test.txt', '/tmp/rerank_output.js')
+
         if last_acc - valid_acc <= 0:
             patient = 0
         else:
             patient += 1
         last_acc = valid_acc
+
         if (epoch + 1) % 5 == 0:
             torch.save(
                 model.state_dict(),
                 model_save_path + 'defseq_model_params_%s.pkl' % (epoch + 1))
+
+        if max_acc < valid_acc:
+            max_acc = valid_acc
+            torch.save(
+                model.state_dict(), model_save_path +
+                'defseq_model_params_%s_max_acc.pkl' % (epoch + 1))
+
         if patient == 5:
             torch.save(
                 model.state_dict(),
