@@ -143,11 +143,11 @@ def main():
                '/tmp/rerank_output.js')
         compute_bleu('data/commondefs/test.txt', '/tmp/rerank_output.js')
 
-        if last_acc - valid_acc <= 0:
-            patient = 0
-        else:
-            patient += 1
-        last_acc = valid_acc
+        # if last_acc - valid_acc <= 0:
+        #     patient = 0
+        # else:
+        #     patient += 1
+        # last_acc = valid_acc
 
         if (epoch + 1) % 5 == 0:
             torch.save(
@@ -160,11 +160,11 @@ def main():
                 model.state_dict(), model_save_path +
                 'defseq_model_params_%s_max_acc.pkl' % (epoch + 1))
 
-        if patient == 5:
-            torch.save(
-                model.state_dict(),
-                model_save_path + 'defseq_model_params_%s.pkl' % (epoch + 1))
-            break
+        # if patient == 5:
+        #     torch.save(
+        #         model.state_dict(),
+        #         model_save_path + 'defseq_model_params_%s.pkl' % (epoch + 1))
+        #     break
     return 1
 
 
