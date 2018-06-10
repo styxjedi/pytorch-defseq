@@ -32,13 +32,13 @@ def test(output_save_path,
 
     word2idx = json.loads(open('data/processed/word2idx.js').read())
     idx2word = {v: k for k, v in word2idx.items()}
+    test_loader, char_max_len = get_test_loader(test_file_path)
     if model is None:
         EMB_DIM = 300
         HID_DIM = 300
         char2idx = json.loads(open('data/processed/char2idx.js').read())
         pretrain_emb = torch.tensor(
             np.load('data/processed/preptrain_emb.npy')).to(device)
-        test_loader, char_max_len = get_test_loader(test_file_path)
 
         char_data = {
             'char_vocab_size': len(char2idx) + 1,
