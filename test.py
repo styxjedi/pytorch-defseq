@@ -92,7 +92,7 @@ def test(output_save_path,
                     inp['seq'].shape[1], 1))
             probs, hidden = model(inp, hidden)
             probs = probs.detach().cpu().numpy().squeeze(0)
-        line = [[idx2word[i] for i in line if i not in [1, 2, 3]]
+        line = [[idx2word[i] for i in line if i not in [0, 1, 2, 3]]
                 for line in beam.output]
         line = [' '.join(line) for line in line]
         word = idx2word[int(feed_dict['word'])]
