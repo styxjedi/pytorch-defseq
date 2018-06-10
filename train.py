@@ -93,8 +93,8 @@ def main():
     model_save_path = 'saved_model/'
     if not os.path.exists(model_save_path):
         os.makedirs(model_save_path)
-    patient = 0
-    last_acc = 0
+    # patient = 0
+    # last_acc = 0
     max_acc = 0
     for epoch in range(200):
         loss_epoch = []
