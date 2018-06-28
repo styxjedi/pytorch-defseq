@@ -155,7 +155,7 @@ def main():
                 model.state_dict(), model_save_path +
                 'defseq_model_params_%s_max_acc.pkl' % (epoch + 1))
 
-        if patient >= 3:
+        if patient >= 4:
             torch.save(
                 model.state_dict(),
                 model_save_path + 'defseq_model_params_%s.pkl' % (epoch + 1))
