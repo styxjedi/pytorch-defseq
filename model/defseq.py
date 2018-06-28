@@ -37,7 +37,8 @@ class DefSeq(nn.Module):
 
         self.embedding = nn.Embedding(vocab_size, emb_dim)
         if pretrain_emb is not None:
-            self.embedding.weight.data.copy_(pretrain_emb)
+            # self.embedding.weight.data.copy_(pretrain_emb)
+            self.embedding.from_pretrained(pretrain_emb, freeze=True)
             # self.embedding.weight.requires_grad = False
 
         if self.use_ch:

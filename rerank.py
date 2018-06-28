@@ -99,7 +99,7 @@ def rerank(gen_def_file, gen_def_scores, rank_write_file):
             rank_defs[word].append((d, new_score))
 
     for w, d_s in rank_defs.items():
-        d_s = sorted(d_s, key=lambda x: x[1])[:40]
+        d_s = sorted(d_s, key=lambda x: x[1])[:1]
         rank_defs[w] = [d for d, s in d_s]
 
     with open(rank_write_file, 'w') as fw:

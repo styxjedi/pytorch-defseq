@@ -9,9 +9,9 @@ from model.defseq import DefSeq
 from utils.dataset import DefSeqDataset
 from tqdm import tqdm
 import os
-from test import test
-from rerank import rerank
-from nltk_bleu import compute_bleu
+# from test import test
+# from rerank import rerank
+# from nltk_bleu import compute_bleu
 
 BATCH_SIZE = 50
 EMB_DIM = 300
@@ -39,7 +39,7 @@ def get_acc(y_pred, y):
 def valid(model, valid_loader, device):
     loss_fn = nn.NLLLoss()
     with torch.no_grad():
-        loss_all = torch.tensor([0.]).to(device)
+        losses = []
         for feed_dict in tqdm(valid_loader, desc='Validation', leave=False):
             inp = {
                 'word':
@@ -59,9 +59,8 @@ def valid(model, valid_loader, device):
                 feed_dict['target'], dtype=torch.long).to(device)
             target_pred = model(inp)[0].transpose(0, 1).transpose(1, 2)
             loss = loss_fn(target_pred, target)
-            loss_all += loss.data
-            acc = get_acc(target_pred, target)
-    return loss_all, acc
+            losses.append(loss.item())
+    return np.mean(losses), np.exp(np.mean(losses))
 
 
 def main():
@@ -88,17 +87,16 @@ def main():
         len(word2idx) + 1, EMB_DIM, HID_DIM, device, pretrain_emb,
         **char_data).to(device)
     loss_fn = nn.NLLLoss()
-    optimizer = optim.Adam(model.parameters())
+    optimizer = optim.Adam(model.parameters(), lr=0.001)
 
     model_save_path = 'saved_model/'
     if not os.path.exists(model_save_path):
         os.makedirs(model_save_path)
-    # patient = 0
-    # last_acc = 0
-    max_acc = 0
+    patient = 0
+    last_ppl = 0
+    max_ppl = 0
     for epoch in range(200):
         loss_epoch = []
-        acc_epoch = []
         for feed_dict in tqdm(
                 train_loader, desc='Epoch: %03d' % (epoch + 1), leave=False):
             inp = {
@@ -119,52 +117,49 @@ def main():
                 feed_dict['target'], dtype=torch.long).to(device)
             optimizer.zero_grad()
             target_pred = model(inp)[0].transpose(0, 1).transpose(1, 2)
-            # print(target_pred.shape)
-            # pdb.set_trace()
             loss = loss_fn(target_pred, target)
-            loss_epoch.append(float(loss))
+            loss_epoch.append(loss.item())
             loss.backward()
             optimizer.step()
-            acc_epoch.append(get_acc(target_pred, target))
-        train_loss = sum(loss_epoch)
-        train_acc = sum(acc_epoch) / len(acc_epoch)
-        valid_loss, valid_acc = valid(model, valid_loader, device)
+        train_loss = np.mean(loss_epoch)
+        train_ppl = np.exp(np.mean(loss_epoch))
+        valid_loss, valid_ppl = valid(model, valid_loader, device)
         print(
             'Epoch: %03d  loss: %.5f  acc: %.5f' % (
                 epoch + 1,
                 float(train_loss),
-                float(train_acc),
+                float(train_ppl),
             ),
             end='')
         print('  valid_loss: %.5f  valid_acc: %.5f' % (float(valid_loss),
-                                                       float(valid_acc)))
-        test('/tmp', 'data/processed/test.npz', device, model=model)
-        rerank('/tmp/output_lines.js', '/tmp/output_scores.js',
-               '/tmp/rerank_output.js')
-        compute_bleu('data/commondefs/test.txt', '/tmp/rerank_output.js')
+                                                       float(valid_ppl)))
+        # test('/tmp', 'data/processed/test.npz', device, model=model)
+        # rerank('/tmp/output_lines.js', '/tmp/output_scores.js',
+        #        '/tmp/rerank_output.js')
+        # compute_bleu('data/commondefs/test.txt', '/tmp/rerank_output.js')
 
-        # if last_acc - valid_acc <= 0:
-        #     patient = 0
-        # else:
-        #     patient += 1
-        # last_acc = valid_acc
+        if last_ppl - valid_ppl <= 0:
+            patient = 0
+        else:
+            patient += 1
+        last_ppl = valid_ppl
 
         if (epoch + 1) % 5 == 0:
             torch.save(
                 model.state_dict(),
                 model_save_path + 'defseq_model_params_%s.pkl' % (epoch + 1))
 
-        if max_acc < valid_acc:
-            max_acc = valid_acc
+        if max_ppl < valid_ppl:
+            max_ppl = valid_ppl
             torch.save(
                 model.state_dict(), model_save_path +
                 'defseq_model_params_%s_max_acc.pkl' % (epoch + 1))
 
-        # if patient == 5:
-        #     torch.save(
-        #         model.state_dict(),
-        #         model_save_path + 'defseq_model_params_%s.pkl' % (epoch + 1))
-        #     break
+        if patient >= 3:
+            torch.save(
+                model.state_dict(),
+                model_save_path + 'defseq_model_params_%s.pkl' % (epoch + 1))
+            break
     return 1
 
 
