@@ -9,6 +9,7 @@ from model.defseq import DefSeq
 from utils.dataset import DefSeqDataset
 from tqdm import tqdm
 import os
+import sys
 # from test import test
 # from rerank import rerank
 # from nltk_bleu import compute_bleu
@@ -16,6 +17,9 @@ import os
 BATCH_SIZE = 50
 EMB_DIM = 300
 HID_DIM = 300
+DROPOUT = 0.7
+LEARNING_RATE = 0.001
+L2_RATE = 0.001
 
 
 def get_train_loader(file_path):
@@ -37,7 +41,7 @@ def get_acc(y_pred, y):
 
 
 def valid(model, valid_loader, device):
-    loss_fn = nn.NLLLoss()
+    loss_fn = nn.CrossEntropyLoss(ignore_index=0)
     with torch.no_grad():
         losses = []
         for feed_dict in tqdm(valid_loader, desc='Validation', leave=False):
@@ -57,14 +61,27 @@ def valid(model, valid_loader, device):
             }
             target = torch.tensor(
                 feed_dict['target'], dtype=torch.long).to(device)
+            model = model.eval()
             target_pred = model(inp)[0].transpose(0, 1).transpose(1, 2)
+            # target_pred = model(inp)[0]
             loss = loss_fn(target_pred, target)
             losses.append(loss.item())
     return np.mean(losses), np.exp(np.mean(losses))
 
 
-def main():
-    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+def main(argv=None):
+    if argv is None:
+        argv = sys.argv
+        if len(argv) == 1:
+            model_save_path = 'saved_model/'
+        elif len(argv) == 2:
+            model_save_path = argv[1]
+        else:
+            print("Wrong Argument Num. Expected at most 1.")
+
+    if not os.path.exists(model_save_path):
+        os.makedirs(model_save_path)
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print('Using Device: ', device)
 
     char2idx = json.loads(open('data/processed/char2idx.js').read())
@@ -84,18 +101,24 @@ def main():
     }
 
     model = DefSeq(
-        len(word2idx) + 1, EMB_DIM, HID_DIM, device, pretrain_emb,
+        len(word2idx) + 1,
+        EMB_DIM,
+        HID_DIM,
+        device,
+        pretrain_emb,
+        dropout=DROPOUT,
         **char_data).to(device)
-    loss_fn = nn.NLLLoss()
-    optimizer = optim.Adam(model.parameters(), lr=0.001)
+    loss_fn = nn.CrossEntropyLoss(ignore_index=0)
+    optimizer = optim.Adam(
+        model.parameters(), lr=LEARNING_RATE, weight_decay=L2_RATE)
 
-    model_save_path = 'saved_model/'
     if not os.path.exists(model_save_path):
         os.makedirs(model_save_path)
     patient = 0
     last_ppl = 0
-    max_ppl = 0
-    for epoch in range(200):
+    min_ppl = 0
+    for epoch in range(100):
+        model = model.train()
         loss_epoch = []
         for feed_dict in tqdm(
                 train_loader, desc='Epoch: %03d' % (epoch + 1), leave=False):
@@ -117,6 +140,7 @@ def main():
                 feed_dict['target'], dtype=torch.long).to(device)
             optimizer.zero_grad()
             target_pred = model(inp)[0].transpose(0, 1).transpose(1, 2)
+            # target_pred = model(inp)[0]
             loss = loss_fn(target_pred, target)
             loss_epoch.append(loss.item())
             loss.backward()
@@ -125,20 +149,20 @@ def main():
         train_ppl = np.exp(np.mean(loss_epoch))
         valid_loss, valid_ppl = valid(model, valid_loader, device)
         print(
-            'Epoch: %03d  loss: %.5f  acc: %.5f' % (
+            'Epoch: %03d  train_loss: %.5f  train_ppl: %.5f' % (
                 epoch + 1,
                 float(train_loss),
                 float(train_ppl),
             ),
             end='')
-        print('  valid_loss: %.5f  valid_acc: %.5f' % (float(valid_loss),
+        print('  valid_loss: %.5f  valid_ppl: %.5f' % (float(valid_loss),
                                                        float(valid_ppl)))
         # test('/tmp', 'data/processed/test.npz', device, model=model)
         # rerank('/tmp/output_lines.js', '/tmp/output_scores.js',
         #        '/tmp/rerank_output.js')
         # compute_bleu('data/commondefs/test.txt', '/tmp/rerank_output.js')
 
-        if last_ppl - valid_ppl <= 0:
+        if last_ppl >= valid_ppl:
             patient = 0
         else:
             patient += 1
@@ -149,20 +173,25 @@ def main():
                 model.state_dict(),
                 model_save_path + 'defseq_model_params_%s.pkl' % (epoch + 1))
 
-        if max_ppl < valid_ppl:
-            max_ppl = valid_ppl
+        if min_ppl > valid_ppl:
+            min_ppl = valid_ppl
             torch.save(
                 model.state_dict(), model_save_path +
                 'defseq_model_params_%s_max_acc.pkl' % (epoch + 1))
 
         if patient >= 4:
             torch.save(
-                model.state_dict(),
-                model_save_path + 'defseq_model_params_%s.pkl' % (epoch + 1))
+                model.state_dict(), model_save_path +
+                'defseq_model_params_%s_early_stop.pkl' % (epoch + 1))
             break
     return 1
 
 
 if __name__ == '__main__':
-    if main():
-        print('All Done. No Error.')
+    print('Batch Size:     {}'.format(BATCH_SIZE))
+    print('Embedding Dim:  {}'.format(EMB_DIM))
+    print('Hidden dim:     {}'.format(HID_DIM))
+    print('Dropout Rate:   {}'.format(DROPOUT))
+    print('Learning Rate:  {}'.format(LEARNING_RATE))
+    print('L2 Regularizer: {}'.format(L2_RATE))
+    sys.exit(main())
