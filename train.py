@@ -17,9 +17,11 @@ import sys
 BATCH_SIZE = 50
 EMB_DIM = 300
 HID_DIM = 300
-DROPOUT = 0.7
+DROPOUT = 0
 LEARNING_RATE = 0.001
-L2_RATE = 0.001
+CHAR_EMB_DIM = 20
+CHAR_HID_DIM = 20
+CLIP_GRAD = 5
 
 
 def get_train_loader(file_path):
@@ -41,6 +43,7 @@ def get_acc(y_pred, y):
 
 
 def valid(model, valid_loader, device):
+    model.training = False
     loss_fn = nn.CrossEntropyLoss(ignore_index=0)
     with torch.no_grad():
         losses = []
@@ -61,7 +64,6 @@ def valid(model, valid_loader, device):
             }
             target = torch.tensor(
                 feed_dict['target'], dtype=torch.long).to(device)
-            model = model.eval()
             target_pred = model(inp)[0].transpose(0, 1).transpose(1, 2)
             # target_pred = model(inp)[0]
             loss = loss_fn(target_pred, target)
@@ -95,8 +97,8 @@ def main(argv=None):
 
     char_data = {
         'char_vocab_size': len(char2idx) + 1,
-        'char_emb_dim': 5,
-        'char_hid_dim': 10,
+        'char_emb_dim': CHAR_EMB_DIM,
+        'char_hid_dim': CHAR_HID_DIM,
         'char_len': char_max_len
     }
 
@@ -109,16 +111,16 @@ def main(argv=None):
         dropout=DROPOUT,
         **char_data).to(device)
     loss_fn = nn.CrossEntropyLoss(ignore_index=0)
-    optimizer = optim.Adam(
-        model.parameters(), lr=LEARNING_RATE, weight_decay=L2_RATE)
+    optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
+    nn.utils.clip_grad_norm()
 
     if not os.path.exists(model_save_path):
         os.makedirs(model_save_path)
     patient = 0
     last_ppl = 0
-    min_ppl = 0
+    min_ppl = 99999
     for epoch in range(100):
-        model = model.train()
+        model.training = True
         loss_epoch = []
         for feed_dict in tqdm(
                 train_loader, desc='Epoch: %03d' % (epoch + 1), leave=False):
@@ -144,6 +146,7 @@ def main(argv=None):
             loss = loss_fn(target_pred, target)
             loss_epoch.append(loss.item())
             loss.backward()
+            nn.utils.clip_grad_norm_(model.parameters(), CLIP_GRAD)
             optimizer.step()
         train_loss = np.mean(loss_epoch)
         train_ppl = np.exp(np.mean(loss_epoch))

@@ -26,6 +26,8 @@ class CharCNN(nn.Module):
                                           embedding_dim)).to(device))
         self.char_cnn = nn.Conv1d(
             embedding_dim, self.hidden_dim, kernel_size=3, padding=1)
+        nn.init.orthogonal_(self.char_cnn.weight.data)
+        nn.init.constant_(self.char_cnn.bias, 0.5)
 
     def random_embedding(self, vocab_size, embedding_dim):
         pretrain_emb = np.empty([vocab_size, embedding_dim])

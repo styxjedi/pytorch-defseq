@@ -35,11 +35,25 @@ class DefSeq(nn.Module):
         char_len = 0
         he_dim = 0
 
+        def weight_init(m):
+            if isinstance(m, nn.Embedding):
+                nn.init.orthogonal_(m.weight.data)
+            if isinstance(m, nn.Linear):
+                nn.init.orthogonal_(m.weight.data)
+                nn.init.constant_(m.bias.data, 0.5)
+            if isinstance(m, nn.LSTMCell):
+                nn.init.orthogonal_(m.weight_hh.data)
+                nn.init.orthogonal_(m.weight_ih.data)
+                nn.init.constant_(m.bias_hh.data, 0.5)
+                nn.init.constant_(m.bias_ih.data, 0.5)
+
         self.embedding = nn.Embedding(vocab_size, emb_dim)
         if pretrain_emb is not None:
             # self.embedding.weight.data.copy_(pretrain_emb)
             self.embedding.from_pretrained(pretrain_emb, freeze=True)
             # self.embedding.weight.requires_grad = False
+        else:
+            weight_init(self.embedding)
 
         if self.use_ch:
             print("build char sequence feature extractor: CNN ...")
@@ -56,19 +70,26 @@ class DefSeq(nn.Module):
 
         final_word_dim = emb_dim + char_hid_dim * char_len + he_dim
         self.word_linear = nn.Linear(final_word_dim, hid_dim)
+        weight_init(self.word_linear)
         self.s_lstm = nn.LSTMCell(emb_dim, hid_dim)
-
+        weight_init(self.s_lstm)
         if self.use_i:
             self.i_lstm = nn.LSTMCell(final_word_dim + emb_dim, hid_dim)
+            weight_init(self.i_lstm)
         if self.use_h:
             self.h_linear = nn.Linear(final_word_dim + hid_dim, hid_dim)
+            weight_init(self.h_linear)
         if self.use_g:
             self.g_zt_linear = nn.Linear(final_word_dim + hid_dim, hid_dim)
+            weight_init(self.g_zt_linear)
             self.g_rt_linear = nn.Linear(final_word_dim + hid_dim,
                                          final_word_dim)
+            weight_init(self.g_rt_linear)
             self.g_ht_linear = nn.Linear(final_word_dim + hid_dim, hid_dim)
+            weight_init(self.g_ht_linear)
 
         self.hidden2tag_linear = nn.Linear(hid_dim, vocab_size)
+        weight_init(self.hidden2tag_linear)
         self.dropout = nn.Dropout(p=dropout)
 
     def forward(self, inputs, init_hidden=None):
@@ -92,11 +113,14 @@ class DefSeq(nn.Module):
             word_embeddings = torch.cat(
                 [word_embeddings, hnym_embeddings], dim=-1)
         word_embeddings = self.dropout(word_embeddings)
+        seq_embeddings = self.dropout(seq_embeddings)
 
         if init_hidden is not None:
             hidden = init_hidden
         else:
-            hidden = (self.word_linear(word_embeddings), ) * 2
+            hidden = self.word_linear(word_embeddings)
+            hidden = self.dropout(hidden)
+            hidden = (hidden, ) * 2
 
         outputs = []
         for step in range(seq_size):
@@ -120,6 +144,7 @@ class DefSeq(nn.Module):
                 hidden = ((1 - z_t) * hidden[0] + z_t * _hidden, hidden[1])
             outputs.append(hidden[0].view(1, batch_size, -1))
         outputs = torch.cat(outputs, dim=0)
+        outputs = self.dropout(outputs)
         outputs = self.hidden2tag_linear(outputs)
         outputs = self.dropout(outputs)
         return outputs, hidden
